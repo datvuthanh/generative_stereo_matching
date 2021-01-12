@@ -11,6 +11,7 @@ import time
 import tensorflow_addons as tfa 
 import tensorflow.keras.backend as K 
 import datetime
+import math 
 
 # AUGEMNTATION
 def load(image_file):
@@ -252,7 +253,7 @@ if __name__ == '__main__':
     #print(images[0][0]) # Test for normalization
     print("DATASET SHAPE: ",images.shape)
     BUFFER_SIZE = images.shape[0]
-    BATCH_SIZE = 256
+    BATCH_SIZE = 32
 
     train_dataset = tf.data.Dataset.from_tensor_slices(images)
     train_dataset = train_dataset.map(load_image_train)#num_parallel_calls=tf.data.AUTOTUNE)
@@ -278,8 +279,17 @@ if __name__ == '__main__':
 
     # Train
     for epoch in range(EPOCHS):
+
+        if epoch < 20:
+          learning_rate = 1e-3
+        else:
+          learning_rate = 1e-4
+        
+        optimizer = optimizers.Adam(learning_rate)
+
         start = time.time()
-        ckpt.step.assign_add(1)   
+        ckpt.step.assign_add(1)  
+
         print("Epoch: ", epoch+1)
 
         # Train
@@ -291,7 +301,11 @@ if __name__ == '__main__':
         count_ones_pos = 0
         count_ones_neg = 0
 
+        iter_samples = math.ceil(BUFFER_SIZE/BATCH_SIZE)
+        progbar = tf.keras.utils.Progbar(iter_samples)
+
         for n, images in train_dataset.enumerate():
+            progbar.update(count+1)
             #print(images.shape)
             left_patch_positive,right_patch_positive,left_patch_negative,right_patch_negative = tf.split(images,4,axis=1)
             
@@ -316,7 +330,7 @@ if __name__ == '__main__':
             ones_neg_output = tf.reduce_sum(tf.cast(bool_neg_output, tf.float32))
             count_ones_neg = count_ones_neg + ones_neg_output
             
-            if (n+1) % 100 == 0:
+            if (n+1) % 1000 == 0:
                 print("TOTAL LOSS: \t",total_loss.numpy(),"\t LOSS POS: ", loss_pos.numpy(), "\t LOSS NEG",loss_neg.numpy())
 
             average_loss = average_loss + total_loss
